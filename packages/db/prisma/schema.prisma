@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String              @id @default(cuid())
+  name           String
+  email          String              @unique
+  googleId       String?             @unique
+  picture        String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  memberships    OrganizationMember[]
+  personalDocs   Document[]          @relation("UserPersonalDocs")
+  adminOf        Organization[]      @relation("AdminOrganizations")
+}
+
+
+model Organization {
+  id            String              @id @default(cuid())
+  name          String
+  adminId       String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  admin         User                @relation("AdminOrganizations", fields: [adminId], references: [id])
+  members       OrganizationMember[]
+  documents     Document[]          @relation("OrganizationDocs")
+}
+
+model OrganizationMember {
+  id              String          @id @default(cuid())
+  userId          String
+  organizationId  String
+  role            MemberRole      @default(MEMBER)
+  invitedById     String?         
+  status          InviteStatus    @default(PENDING)
+  createdAt       DateTime        @default(now())
+
+  user            User            @relation(fields: [userId], references: [id])
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+
+model Document {
+  id              String             @id @default(cuid())
+  title           String
+  description     String?
+  fileUrl         String             // S3/MinIO link
+  type            DocumentType       @default(ORGANIZATION)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // For Organization Docs
+  organizationId  String?           
+  organization    Organization?      @relation("OrganizationDocs", fields: [organizationId], references: [id])
+
+  // For Personal Docs
+  ownerId         String?
+  owner           User?              @relation("UserPersonalDocs", fields: [ownerId], references: [id])
+}
+
+enum DocumentType {
+  ORGANIZATION
+  PERSONAL
+}
