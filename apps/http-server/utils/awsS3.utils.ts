@@ -23,7 +23,7 @@ export const getPresignedUploadUrl = async ({key,contentType}: {key: string;cont
 
 export const generatePresignedUrlForDownload = async (key: string) => {
   const command = new GetObjectCommand({
-    Bucket: process.env.AWS_BUCKET_NAME,
+    Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: key
   });
 

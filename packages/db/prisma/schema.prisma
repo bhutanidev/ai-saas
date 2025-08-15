@@ -66,23 +66,42 @@ enum InviteStatus {
 }
 
 
+enum DocumentContentType {
+  FILE
+  TEXT
+  URL
+}
+
 model Document {
   id              String             @id @default(cuid())
   title           String
   description     String?
-  fileKey         String             
-  type            DocumentType       @default(ORGANIZATION)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  
+  // Content type
+  contentType     DocumentContentType @default(FILE)
+
+  // File content
+  fileKey         String?              // nullable if not FILE
+
+  // Plain text content
+  textContent     String?              
+
+  // URL content
+  url             String?
+
+  type            DocumentType         @default(ORGANIZATION)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   // For Organization Docs
   organizationId  String?           
-  organization    Organization?      @relation("OrganizationDocs", fields: [organizationId], references: [id])
+  organization    Organization?        @relation("OrganizationDocs", fields: [organizationId], references: [id])
 
   // For Personal Docs
   ownerId         String?
-  owner           User?              @relation("UserPersonalDocs", fields: [ownerId], references: [id])
+  owner           User?                @relation("UserPersonalDocs", fields: [ownerId], references: [id])
 }
+
 
 
 enum DocumentType {

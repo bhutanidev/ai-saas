@@ -1,0 +1,9 @@
+{
+    "name": "consumer",
+    "version": "1.0.0",
+    "scripts": {
+    "dev": "./venv/bin/python script.py",
+    "build": "echo 'No build step for Python backend'",
+    "test": "./venv/bin/python -m pytest"
+    }
+}
