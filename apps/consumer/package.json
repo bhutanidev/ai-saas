@@ -1,9 +1,20 @@
 {
-    "name": "consumer",
-    "version": "1.0.0",
-    "scripts": {
-    "dev": "./venv/bin/python script.py",
-    "build": "echo 'No build step for Python backend'",
-    "test": "./venv/bin/python -m pytest"
-    }
+  "name": "consumer",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5",
+    "utils":"*"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.8",
+    "rabbitmq": "^0.0.2"
+  },
+  "scripts": {
+    "dev":"bun index.ts"
+  }
 }

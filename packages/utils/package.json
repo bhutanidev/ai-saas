@@ -13,6 +13,12 @@
     "./ApiError": "./ApiError.ts",
     "./ApiResponse": "./ApiResponse.ts",
     "./AsyncHandler": "./AsyncHandler.ts",
-    "./ErrorHandler": "./ErrorHandler.ts"
+    "./ErrorHandler": "./ErrorHandler.ts",
+    "./rabithelper": "./rabbitMq.ts",
+    "./s3helper": "./utilsS3.ts"
+  },
+  "dependencies": {
+    "@types/amqplib": "^0.10.7",
+    "amqplib": "^0.10.8"
   }
 }

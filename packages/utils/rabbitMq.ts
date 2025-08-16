@@ -1,6 +1,8 @@
 import amqplib from "amqplib";
 
 let channel: amqplib.Channel | null = null;
+console.log(process.env.RABBITMQ_URL!)
+
 
 export async function getRabbitChannel() {
   if (!channel) {

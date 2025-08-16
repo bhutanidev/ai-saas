@@ -1,10 +1,10 @@
 import { type Request, type Response, type NextFunction } from "express";
-import { generatePresignedUrlForDownload, getPresignedUploadUrl } from "../utils/awsS3.utils";
+import { generatePresignedUrlForDownload, getPresignedUploadUrl } from "utils/s3helper"
 import ApiError from "utils/ApiError";
 import ApiResponse from "utils/ApiResponse";
 import { v4 as uuidv4 } from "uuid";
 import client from "db/client";
-import { publishDocumentToQueue } from "../utils/rabitMqPublisher";
+import { publishDocumentToQueue } from "utils/rabithelper"
 
 // ===== Helper for Validation =====
 function validateDocumentPayload({ contentType, fileKey, textContent, url }: any) {
@@ -116,6 +116,8 @@ export const savePersonalDocument = async (req: Request, res: Response, next: Ne
 
     return res.status(201).json(new ApiResponse(201, document, "Personal document saved"));
   } catch (err) {
+    
+    console.log(err)
     next(err instanceof ApiError ? err : new ApiError(500, "Failed to save personal document"));
   }
 };
