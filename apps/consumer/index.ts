@@ -1,70 +1,167 @@
 import { getRabbitChannel } from "utils/rabithelper";
 import type { ConsumeMessage } from "amqplib";
+import { 
+  processTextDocument,
+  processUrlDocument,
+  processS3PdfDocument 
+} from "./documentProcessors"
 
-const QUEUE_NAME = "document_embedding"; // stays in consumer
+const QUEUE_NAME = "document_embedding";
+
+// === Message Type Definition ===
+interface DocumentMessage {
+  id: string;
+  type: "ORGANIZATION" | "PERSONAL"; // Document type
+  ownerId: string;
+  contentType: "TEXT" | "URL" | "FILE";
+  fileKey?: string;
+  createdAt: string; // ISO string from queue
+}
 
 // === Processing Functions ===
-function processUrlDocument(doc: any) {
-  console.log(`🌐 Processing URL document for owner ${doc.ownerId}`);
-  console.log(`🔗 URL: ${doc.url}`);
-  // TODO: scrape content, generate embeddings, store in DB/vector store
+async function processUrlDocumentWrapper(doc: DocumentMessage) {
+  console.log(`🌐 Processing URL document ${doc.id} for owner ${doc.ownerId}`);
+  
+  try {
+    await processUrlDocument({
+      id: doc.id,
+      ownerId: doc.ownerId,
+      contentType: doc.contentType,
+      createdAt: new Date(doc.createdAt),
+    });
+    console.log(`✅ Successfully processed URL document ${doc.id}`);
+  } catch (error) {
+    console.error(`❌ Failed to process URL document ${doc.id}:`, error);
+    throw error; // Re-throw to handle in consumer
+  }
 }
 
-function processTextDocument(doc: any) {
-  console.log(`📝 Processing TEXT document for owner ${doc.ownerId}`);
-  console.log(`📄 Text Content: ${doc.textContent?.slice(0, 100)}...`);
-  // TODO: generate embeddings directly from text
+async function processTextDocumentWrapper(doc: DocumentMessage) {
+  console.log(`📝 Processing TEXT document ${doc.id} for owner ${doc.ownerId}`);
+  
+  try {
+    await processTextDocument({
+      id: doc.id,
+      ownerId: doc.ownerId,
+      contentType: doc.contentType,
+      createdAt: new Date(doc.createdAt),
+    });
+    console.log(`✅ Successfully processed TEXT document ${doc.id}`);
+  } catch (error) {
+    console.error(`❌ Failed to process TEXT document ${doc.id}:`, error);
+    throw error; // Re-throw to handle in consumer
+  }
 }
 
-function processFileDocument(doc: any) {
-  console.log(`📂 Processing FILE document for owner ${doc.ownerId}`);
+async function processFileDocumentWrapper(doc: DocumentMessage) {
+  console.log(`📂 Processing FILE document ${doc.id} for owner ${doc.ownerId}`);
   console.log(`🗝️ File Key: ${doc.fileKey}`);
-  // TODO: download from S3, extract text, generate embeddings
+  
+  if (!doc.fileKey) {
+    throw new Error(`No fileKey provided for FILE document ${doc.id}`);
+  }
+  
+  try {
+    await processS3PdfDocument({
+      id: doc.id,
+      ownerId: doc.ownerId,
+      contentType: doc.contentType,
+      createdAt: new Date(doc.createdAt),
+    });
+    console.log(`✅ Successfully processed FILE document ${doc.id}`);
+  } catch (error) {
+    console.error(`❌ Failed to process FILE document ${doc.id}:`, error);
+    throw error; // Re-throw to handle in consumer
+  }
 }
 
 // === Dispatcher ===
-function processDocument(doc: any) {
+async function processDocument(doc: DocumentMessage) {
+  console.log(`🚀 Starting to process document ${doc.id} of type ${doc.contentType}`);
+  
   switch (doc.contentType) {
     case "URL":
-      processUrlDocument(doc);
+      await processUrlDocumentWrapper(doc);
       break;
     case "TEXT":
-      processTextDocument(doc);
+      await processTextDocumentWrapper(doc);
       break;
     case "FILE":
-      processFileDocument(doc);
+      await processFileDocumentWrapper(doc);
       break;
     default:
-      console.log(`⚠️ Unknown content type: ${doc.contentType}`);
+      console.log(`⚠️ Unknown content type: ${doc.contentType} for document ${doc.id}`);
+      throw new Error(`Unsupported content type: ${doc.contentType}`);
   }
 }
 
 // === Consumer ===
 async function startConsumer() {
-  const ch = await getRabbitChannel();
+  try {
+    const ch = await getRabbitChannel();
 
-  await ch.assertQueue(QUEUE_NAME, { durable: true });
-  ch.prefetch(1);
+    await ch.assertQueue(QUEUE_NAME, { durable: true });
+    ch.prefetch(1); // Process one message at a time
 
-  await ch.consume(
-    QUEUE_NAME,
-    async (msg: ConsumeMessage | null) => {
-      if (!msg) return;
-      try {
-        const doc = JSON.parse(msg.content.toString());
-        processDocument(doc);
-        ch.ack(msg);
-      } catch (err) {
-        console.error(`❌ Error processing document:`, err);
-        ch.nack(msg, false, false); // reject, don't requeue
-      }
-    },
-    { noAck: false }
-  );
+    console.log(`🐰 Connected to RabbitMQ queue: ${QUEUE_NAME}`);
+    console.log("⚡ Consumer is ready to process document embeddings...");
 
-  console.log(" [*] Waiting for messages... Press CTRL+C to exit.");
+    await ch.consume(
+      QUEUE_NAME,
+      async (msg: ConsumeMessage | null) => {
+        if (!msg) return;
+
+        let doc: DocumentMessage;
+        
+        try {
+          // Parse message
+          doc = JSON.parse(msg.content.toString()) as DocumentMessage;
+          console.log(`📨 Received document: ${doc.id} (${doc.contentType})`);
+
+          // Validate required fields
+          if (!doc.id || !doc.ownerId || !doc.contentType || !doc.createdAt) {
+            throw new Error(`Missing required fields in document message`);
+          }
+
+          // Process document
+          await processDocument(doc);
+
+          // Acknowledge successful processing
+          ch.ack(msg);
+          console.log(`🎉 Successfully processed and acknowledged document ${doc.id}`);
+
+        } catch (error) {
+          console.error(`❌ Error processing document:`, error);
+          console.error(`📋 Message content:`, msg.content.toString());
+          
+          // Reject message and don't requeue to avoid infinite loops
+          ch.nack(msg, false, false);
+          console.log(`🚫 Message rejected and not requeued`);
+        }
+      },
+      { noAck: false } // Manual acknowledgment
+    );
+
+    console.log(" [*] 👂 Waiting for messages... Press CTRL+C to exit.");
+
+  } catch (error) {
+    console.error("❌ Failed to setup consumer:", error);
+    throw error;
+  }
 }
 
+// === Graceful Shutdown ===
+process.on('SIGINT', () => {
+  console.log('\n🛑 Received SIGINT. Shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Received SIGTERM. Shutting down gracefully...');
+  process.exit(0);
+});
+
+// === Start Consumer ===
 startConsumer().catch((err) => {
   console.error("❌ Failed to start consumer:", err);
   process.exit(1);

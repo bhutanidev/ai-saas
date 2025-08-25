@@ -5,6 +5,7 @@ import authRouter from "./routes/auth.routes"
 import orgRouter from "./routes/organisation.routes"
 import errorHandler from "utils/ErrorHandler"
 import docRouter from "./routes/docs.routes"
+import genaiRouter from "./routes/genai.route"
 const app = express()
 
 
@@ -16,6 +17,8 @@ app.use(cookieParser())
 app.use("/api/auth" , authRouter)
 app.use("/api/org" , orgRouter)
 app.use("/api/doc" , docRouter)
+app.use("/api/genai" , genaiRouter )
+
 
 
 app.use(errorHandler)

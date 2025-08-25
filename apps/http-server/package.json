@@ -13,11 +13,11 @@
     "typescript": "^5",
     "db": "*",
     "utils": "*"
-    
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.862.0",
     "@aws-sdk/s3-request-presigner": "^3.862.0",
+    "@langchain/groq": "^0.2.3",
     "@types/amqplib": "^0.10.7",
     "@types/jsonwebtoken": "^9.0.10",
     "amqplib": "^0.10.8",
@@ -28,6 +28,6 @@
     "jsonwebtoken": "^9.0.2"
   },
   "scripts": {
-    "dev":"bun index.ts"
+    "dev": "bun index.ts"
   }
 }

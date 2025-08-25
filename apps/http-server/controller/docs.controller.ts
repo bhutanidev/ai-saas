@@ -109,14 +109,12 @@ export const savePersonalDocument = async (req: Request, res: Response, next: Ne
       ownerId: userId,
       contentType: document.contentType,
       fileKey: document.fileKey,
-      textContent: document.textContent,
-      url: document.url,
       createdAt: document.createdAt
     });
 
     return res.status(201).json(new ApiResponse(201, document, "Personal document saved"));
   } catch (err) {
-    
+
     console.log(err)
     next(err instanceof ApiError ? err : new ApiError(500, "Failed to save personal document"));
   }
@@ -167,8 +165,6 @@ export const saveOrganizationDocument = async (req: Request, res: Response, next
       ownerId: organizationId, // here ownerId means org ID
       contentType: document.contentType,
       fileKey: document.fileKey,
-      textContent: document.textContent,
-      url: document.url,
       createdAt: document.createdAt
     });
 
