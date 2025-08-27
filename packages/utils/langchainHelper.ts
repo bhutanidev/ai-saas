@@ -23,7 +23,15 @@ export const embeddings = new HuggingFaceInferenceEmbeddings({
   apiKey: process.env.HUGGINGFACE_API_KEY!,
   model: "sentence-transformers/all-MiniLM-L6-v2", // 384-dim
 });
-
+const cleanText = (txt: string) => {
+  return txt
+    .replace(/Like\s*·\s*Comment\s*·\s*Share/g, "")
+    .replace(/\d+\s+Comments?/gi, "")
+    .replace(/View C2PA information/gi, "")
+    .replace(/\bReport this comment\b/gi, "")
+    .replace(/\d+\s*Reactions?/gi, "")
+    .trim();
+};
 // --- Splitter ---
 const splitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
@@ -89,10 +97,10 @@ export async function processUrlDocumentHelper(url: string): Promise<Document[]>
 
     // Light normalization
     const normalizedDocs = rawDocs.map((d) => {
-      const txt = (d.pageContent || "")
-        .replace(/\u00a0/g, " ")      // non-breaking spaces
-        .replace(/[ \t]+\n/g, "\n")   // trim line-end spaces
-        .replace(/\n{3,}/g, "\n\n")   // collapse extra blank lines
+      const txt = cleanText(d.pageContent || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
         .trim();
       return new Document({ pageContent: txt, metadata: d.metadata });
     });
