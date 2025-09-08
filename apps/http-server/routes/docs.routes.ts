@@ -1,10 +1,11 @@
 import { Router } from "express";
 import asyncHandler from "utils/AsyncHandler";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { downloadDocumentById, downloadOrganizationDocument, generateOrganizationUploadUrl, generatePersonalUploadUrl, saveOrganizationDocument, savePersonalDocument } from "../controller/docs.controller";
+import { downloadDocumentById, downloadOrganizationDocument, generateOrganizationUploadUrl, generatePersonalUploadUrl, getUserDocuments, saveOrganizationDocument, savePersonalDocument } from "../controller/docs.controller";
 
 const router = Router();
 
+router.get('/personal/list', authMiddleware, getUserDocuments )
 router.get('/personal/:id', authMiddleware, downloadDocumentById)
 router.get('/organization/:id', authMiddleware, downloadOrganizationDocument)
 router.post("/generate-personal", authMiddleware, asyncHandler(generatePersonalUploadUrl))

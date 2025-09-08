@@ -55,8 +55,38 @@ export const orgApi = {
 
 // Document API endpoints
 export const docApi = {
-  // Add document endpoints as needed
+  getUserDocuments: async (params?: {
+    page?: number;
+    limit?: number;
+    type?: 'PERSONAL' | 'ORGANIZATION';
+    search?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.search) searchParams.append('search', params.search);
+    
+    const url = `/doc/personal/list${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+    const res = await api.get(url);
+    console.log(res.data);
+    
+    return res.data;
+  },
+  
+  deleteDocument: async (id: string) => {
+    const res = await api.delete(`/doc/personal/${id}`);
+    return res.data;
+  },
+  
+  downloadDocument: async (id: string) => {
+    const res = await api.get(`/personal/docs/${id}/download`, {
+      responseType: 'blob'
+    });
+    return res.data;
+  },
 };
+
 
 // GenAI API endpoints
 export const genaiApi = {

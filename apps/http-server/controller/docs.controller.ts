@@ -174,6 +174,166 @@ export const saveOrganizationDocument = async (req: Request, res: Response, next
   }
 };
 
+// ===== Fetch all user documents with pagination =====
+export const getUserDocuments = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const type = req.query.type as string; // Optional filter: 'PERSONAL' | 'ORGANIZATION'
+    const search = req.query.search as string; // Optional search term
+
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+      return next(new ApiError(400, "Invalid pagination parameters. Page must be >= 1, limit must be between 1-100"));
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Get user's organization memberships for organization documents
+    const userMemberships = await client.organizationMember.findMany({
+      where: {
+        userId,
+        status: "ACCEPTED"
+      },
+      select: {
+        organizationId: true
+      }
+    });
+
+    const userOrgIds = userMemberships.map(m => m.organizationId);
+
+    // Build where conditions
+    const whereConditions: any[] = [
+      // Personal documents owned by user
+      {
+        type: "PERSONAL",
+        ownerId: userId
+      }
+    ];
+
+    // Add organization documents if user is member of any organizations
+    if (userOrgIds.length > 0) {
+      whereConditions.push({
+        type: "ORGANIZATION",
+        organizationId: {
+          in: userOrgIds
+        }
+      });
+    }
+
+    let whereClause: any = {
+      OR: whereConditions
+    };
+
+    // Apply type filter if specified
+    if (type && (type === "PERSONAL" || type === "ORGANIZATION")) {
+      if (type === "PERSONAL") {
+        whereClause = {
+          type: "PERSONAL",
+          ownerId: userId
+        };
+      } else {
+        if (userOrgIds.length === 0) {
+          // User has no organization memberships, return empty result
+          return res.status(200).json(new ApiResponse(200, {
+            documents: [],
+            pagination: {
+              currentPage: page,
+              totalPages: 0,
+              totalDocuments: 0,
+              hasNextPage: false,
+              hasPreviousPage: false
+            }
+          }, "No organization documents found"));
+        }
+        whereClause = {
+          type: "ORGANIZATION",
+          organizationId: {
+            in: userOrgIds
+          }
+        };
+      }
+    }
+
+    // Apply search filter if specified
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      whereClause.AND = [
+        whereClause.OR ? { OR: whereClause.OR } : whereClause,
+        {
+          OR: [
+            { title: { contains: searchTerm, mode: "insensitive" } },
+            { description: { contains: searchTerm, mode: "insensitive" } }
+          ]
+        }
+      ];
+      delete whereClause.OR;
+    }
+
+    // Get total count for pagination
+    const totalDocuments = await client.document.count({
+      where: whereClause
+    });
+
+    // Fetch documents with pagination
+    const documents = await client.document.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        contentType: true,
+        textContent: true,
+        url: true,
+        type: true,
+        createdAt: true,
+        updatedAt: true,
+        organizationId: true,
+        ownerId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      skip,
+      take: limit
+    });
+
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    const pagination = {
+      currentPage: page,
+      totalPages,
+      totalDocuments,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      limit
+    };
+
+    return res.status(200).json(new ApiResponse(200, {
+      documents,
+      pagination
+    }, "User documents retrieved successfully"));
+
+  } catch (err) {
+    console.error(err);
+    next(new ApiError(500, "Failed to fetch user documents"));
+  }
+};
+
 export const downloadDocumentById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const documentId = req.params.id;
