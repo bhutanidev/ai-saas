@@ -69,8 +69,6 @@ export const docApi = {
     
     const url = `/doc/personal/list${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     const res = await api.get(url);
-    console.log(res.data);
-    
     return res.data;
   },
   
@@ -80,17 +78,64 @@ export const docApi = {
   },
   
   downloadDocument: async (id: string) => {
-    const res = await api.get(`/personal/docs/${id}/download`, {
-      responseType: 'blob'
+    const res = await api.get(`/doc/personal/${id}`);
+    return res.data;
+  },
+
+  // Generate presigned URL for file uploads
+  generatePersonalUploadUrl: async (filename: string, contentType: string) => {
+    const res = await api.post('/doc/generate-personal', {
+      filename,
+      contentType
     });
     return res.data;
+  },
+
+  // Save personal document
+  savePersonalDocument: async (documentData: {
+    title: string;
+    description?: string;
+    contentType: 'FILE' | 'TEXT' | 'URL';
+    fileKey?: string;
+    textContent?: string;
+    url?: string;
+  }) => {
+    const res = await api.post('/doc/save-personal', documentData);
+    return res.data;
+  },
+
+  // Upload file to S3 using presigned URL
+  uploadToS3: async (presignedUrl: string, file: File) => {
+    const response = await fetch(presignedUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload file to S3');
+    }
+    
+    return response;
   },
 };
 
 
+
 // GenAI API endpoints
 export const genaiApi = {
-  // Add genai endpoints as needed
+  queryRAG: async (queryData: {
+    query: string;
+    type: 'ORGANIZATION' | 'USER';
+    organizationId?: string;
+    topK?: number;
+    filter?: Record<string, any>;
+  }) => {
+    const res = await api.post('/genai/query', queryData);
+    return res.data;
+  },
 };
 
 export default api;
